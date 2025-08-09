@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Course Recommendation App</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <div class="container">
+      <h1 style="text-align:center;font-size:2.3rem;font-weight:800;color:#6366f1;margin-bottom:10px;letter-spacing:1px;">AI COURSE RECOMMENDATION SYSTEM</h1>
+      <div style="text-align:center;margin-bottom:24px;color:#475569;font-size:1.1rem;">Get the best courses for your interests, powered by AI.</div>
+      <div id="auth-section">
+        <form id="register-form" style="display:none">
+          <h3 style="text-align:center;margin-bottom:12px;">Register</h3>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <input type="text" id="reg-name" placeholder="Name" required>
+            <input type="email" id="reg-email" placeholder="Email" required>
+            <input type="password" id="reg-password" placeholder="Password" required>
+            <button type="submit">Register</button>
+          </div>
+          <p class="switch-auth" style="text-align:center;margin-top:10px;">Already have an account? <a href="#" id="show-login">Login</a></p>
+        </form>
+        <form id="login-form">
+          <h3 style="text-align:center;margin-bottom:12px;">Login</h3>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <input type="email" id="login-email" placeholder="Email" required>
+            <input type="password" id="login-password" placeholder="Password" required>
+            <button type="submit">Login</button>
+          </div>
+          <p class="switch-auth" style="text-align:center;margin-top:10px;">Need an account? <a href="#" id="show-register">Register</a></p>
+        </form>
+        <div id="auth-error" class="error"></div>
+      </div>
+      <div id="main-section" style="display:none">
+        <div class="user-bar">
+          <span id="welcome-user"></span>
+          <button id="logout-btn">Logout</button>
+        </div>
+        <form id="query-form">
+          <input type="text" id="query-input" placeholder="Enter your interest or course topic..." required>
+          <button type="submit">Recommend</button>
+        </form>
+        <div id="recommend-error" class="error"></div>
+        <div id="recommendations"></div>
+        <h3>Your Recommendation History</h3>
+        <ul id="history-list"></ul>
+        <div style="margin-top:32px;text-align:center;">
+          <h3 style="color:#6366f1;">Ask Gemini LLM about this project</h3>
+          <div id="gemini-history" style="margin-bottom:18px;text-align:left;max-height:320px;overflow-y:auto;border:1.5px solid #e0e7ff;border-radius:10px;background:#f8fafc;padding:10px 8px;"></div>
+          <input type="text" id="gemini-query" placeholder="Ask Gemini about this project..." style="width:70%;padding:10px 12px;border-radius:8px;border:1.5px solid #bfc7d1;font-size:1rem;">
+          <button id="gemini-btn" style="margin-left:8px;padding:10px 18px;font-size:1rem;border-radius:8px;background:#6366f1;color:#fff;border:none;cursor:pointer;">Ask Gemini</button>
+        </div>
+      </div>
+    </div>
+    <!-- style.css is now loaded as a stylesheet above -->
+    <script src="app.js"></script>
+    <script>
+      // Gemini LLM integration with prompt/response history
+      document.addEventListener('DOMContentLoaded', function() {
+        const geminiBtn = document.getElementById('gemini-btn');
+        const geminiQuery = document.getElementById('gemini-query');
+        const geminiHistory = document.getElementById('gemini-history');
+        let geminiHistoryArr = [];
+        if (geminiBtn) {
+          geminiBtn.onclick = async function(e) {
+            e.preventDefault();
+            const prompt = geminiQuery.value.trim();
+            if (!prompt) {
+              geminiQuery.value = '';
+              return;
+            }
+            const entry = { prompt, response: 'Thinking...' };
+            geminiHistoryArr.push(entry);
+            renderGeminiHistory();
+            geminiQuery.value = '';
+            try {
+              const res = await fetch('http://localhost:5000/api/gemini', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt })
+              });
+              const data = await res.json();
+              if (!res.ok) throw new Error(data.error || 'Failed to get Gemini response');
+              entry.response = data.text;
+            } catch (err) {
+              entry.response = err.message;
+            }
+            renderGeminiHistory();
+          };
+        }
+        function renderGeminiHistory() {
+          geminiHistory.innerHTML = geminiHistoryArr.map(item => {
+            // Limit Gemini's reply to 500 characters, add ellipsis if longer
+            let reply = item.response;
+            if (reply && reply.length > 500) {
+              reply = reply.slice(0, 500) + '...';
+            }
+            return `
+              <div style="margin-bottom:16px;">
+                <div style="font-weight:600;color:#6366f1;">You:</div>
+                <div style="margin-bottom:6px;">${item.prompt}</div>
+                <div style="font-weight:600;color:#475569;">Gemini:</div>
+                <div style="background:#f4f7ff;padding:10px 14px;border-radius:8px;">${reply}</div>
+              </div>
+            `;
+          }).join('');
+        }
+        // Clear Gemini history on logout
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+          logoutBtn.addEventListener('click', function() {
+            geminiHistoryArr = [];
+            renderGeminiHistory();
+          });
+        }
+      });
+    </script>
+  </body>
+</html>
